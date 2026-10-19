@@ -1,59 +1,47 @@
--- Editor options
+local opt = vim.opt
 
--- Disable unused legacy providers (silences :checkhealth warnings)
-vim.g.loaded_node_provider = 0
-vim.g.loaded_perl_provider = 0
-vim.g.loaded_python3_provider = 0
-vim.g.loaded_ruby_provider = 0
+vim.g.mapleader = " "
+vim.g.maplocalleader = " "
 
-vim.o.number = true
-vim.o.relativenumber = true
-vim.o.mouse = 'a'
-vim.o.showmode = false -- statusline shows the mode already
+opt.number = true
+opt.relativenumber = true
+opt.signcolumn = "yes"
+opt.cursorline = true
+opt.scrolloff = 8
+opt.sidescrolloff = 8
 
--- Sync with system clipboard (scheduled to avoid slowing startup)
-vim.schedule(function()
-  vim.o.clipboard = 'unnamedplus'
-end)
+opt.expandtab = true
+opt.shiftwidth = 4
+opt.tabstop = 4
+opt.softtabstop = 4
+opt.smartindent = true
+opt.wrap = false
 
-vim.o.breakindent = true
-vim.o.undofile = true
+opt.ignorecase = true
+opt.smartcase = true
+opt.hlsearch = true
+opt.incsearch = true
 
-vim.o.ignorecase = true
-vim.o.smartcase = true
+opt.termguicolors = true
+opt.background = "dark"
+opt.splitbelow = true
+opt.splitright = true
+opt.mouse = "a"
+opt.clipboard = "unnamedplus"
+opt.undofile = true
+opt.swapfile = false
+opt.updatetime = 250
+opt.timeoutlen = 400
+opt.completeopt = { "menu", "menuone", "noselect" }
+opt.fillchars = { eob = " " }
+opt.list = true
+opt.listchars = { tab = "» ", trail = "·", nbsp = "␣" }
 
-vim.o.signcolumn = 'yes'
-vim.o.updatetime = 250
-vim.o.timeoutlen = 400
-
-vim.o.splitright = true
-vim.o.splitbelow = true
-
-vim.o.list = true
-vim.opt.listchars = { tab = '» ', trail = '·', nbsp = '␣' }
-
-vim.o.inccommand = 'split' -- live preview of :s substitutions
-vim.o.cursorline = true
-vim.o.scrolloff = 8
-vim.o.confirm = true -- ask instead of failing on unsaved changes
-vim.o.winborder = 'rounded'
-
--- zig fmt uses 4-space indentation
-vim.o.expandtab = true
-vim.o.shiftwidth = 4
-vim.o.tabstop = 4
-vim.o.softtabstop = 4
-
-vim.diagnostic.config {
-  severity_sort = true,
-  float = { source = 'if_many' },
-  virtual_text = { source = 'if_many', spacing = 2 },
-  signs = vim.g.have_nerd_font and {
-    text = {
-      [vim.diagnostic.severity.ERROR] = '󰅚 ',
-      [vim.diagnostic.severity.WARN] = '󰀪 ',
-      [vim.diagnostic.severity.INFO] = '󰋽 ',
-      [vim.diagnostic.severity.HINT] = '󰌶 ',
-    },
-  } or {},
-}
+if vim.fn.has("win32") == 1 and vim.fn.executable("pwsh") == 1 then
+  opt.shell = "pwsh"
+  opt.shellcmdflag = "-NoLogo -NonInteractive -NoProfile -ExecutionPolicy RemoteSigned -Command"
+  opt.shellquote = ""
+  opt.shellxquote = ""
+  opt.shellredir = "2>&1 | %%{ \"$_\" } | Out-File %s; exit $LastExitCode"
+  opt.shellpipe = "2>&1 | %%{ \"$_\" } | Tee-Object %s; exit $LastExitCode"
+end

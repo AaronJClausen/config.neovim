@@ -1,99 +1,113 @@
 return {
   {
-    'neovim/nvim-lspconfig',
+    "neovim/nvim-lspconfig",
+    event = { "BufReadPre", "BufNewFile" },
     dependencies = {
-      -- Mason manages tools that aren't installed via scoop (lua_ls, stylua, codelldb).
-      -- zls itself comes from scoop so it always matches the scoop-installed zig.
-      { 'mason-org/mason.nvim', opts = {} },
-      'mason-org/mason-lspconfig.nvim',
-      'WhoIsSethDaniel/mason-tool-installer.nvim',
-      'saghen/blink.cmp',
-      { 'j-hui/fidget.nvim', opts = {} }, -- LSP progress messages
+      "hrsh7th/cmp-nvim-lsp",
+      { "j-hui/fidget.nvim", opts = {} },
     },
     config = function()
-      vim.api.nvim_create_autocmd('LspAttach', {
-        group = vim.api.nvim_create_augroup('user_lsp_attach', { clear = true }),
-        callback = function(event)
-          local map = function(keys, func, desc, mode)
-            vim.keymap.set(mode or 'n', keys, func, { buffer = event.buf, desc = 'LSP: ' .. desc })
+      local capabilities = vim.tbl_deep_extend(
+        "force",
+        vim.lsp.protocol.make_client_capabilities(),
+        require("cmp_nvim_lsp").default_capabilities()
+      )
+
+      vim.diagnostic.config({
+        virtual_text = { prefix = "●", source = "if_many" },
+        signs = true,
+        underline = true,
+        update_in_insert = false,
+        severity_sort = true,
+        float = { border = "rounded", source = "if_many" },
+      })
+
+      vim.api.nvim_create_autocmd("LspAttach", {
+        group = vim.api.nvim_create_augroup("user_lsp_attach", { clear = true }),
+        callback = function(args)
+          local bufnr = args.buf
+          local client = vim.lsp.get_client_by_id(args.data.client_id)
+
+          local function map_buffer_key(mode, lhs, rhs, desc)
+            vim.keymap.set(mode, lhs, rhs, { buffer = bufnr, desc = desc, silent = true })
           end
 
-          local tb = require 'telescope.builtin'
-          map('gd', tb.lsp_definitions, 'Goto definition')
-          map('gD', vim.lsp.buf.declaration, 'Goto declaration')
-          map('grr', tb.lsp_references, 'References')
-          map('gri', tb.lsp_implementations, 'Goto implementation')
-          map('grt', tb.lsp_type_definitions, 'Goto type definition')
-          map('grn', vim.lsp.buf.rename, 'Rename')
-          map('gra', vim.lsp.buf.code_action, 'Code action', { 'n', 'x' })
-          map('gO', tb.lsp_document_symbols, 'Document symbols')
-          map('gW', tb.lsp_dynamic_workspace_symbols, 'Workspace symbols')
+          map_buffer_key("n", "gd", vim.lsp.buf.definition, "Goto definition")
+          map_buffer_key("n", "gD", vim.lsp.buf.declaration, "Goto declaration")
+          map_buffer_key("n", "gi", vim.lsp.buf.implementation, "Goto implementation")
+          map_buffer_key("n", "gr", vim.lsp.buf.references, "References")
+          map_buffer_key("n", "gy", vim.lsp.buf.type_definition, "Goto type definition")
+          map_buffer_key("n", "K", function() vim.lsp.buf.hover({ border = "rounded" }) end, "Hover")
+          map_buffer_key("n", "<C-k>", function() vim.lsp.buf.signature_help({ border = "rounded" }) end, "Signature help")
+          map_buffer_key("i", "<C-k>", function() vim.lsp.buf.signature_help({ border = "rounded" }) end, "Signature help")
+          map_buffer_key("n", "<leader>cr", vim.lsp.buf.rename, "Rename")
+          map_buffer_key({ "n", "v" }, "<leader>ca", vim.lsp.buf.code_action, "Code action")
+          map_buffer_key("n", "<leader>cf", function() vim.lsp.buf.format({ async = true }) end, "Format buffer")
+          map_buffer_key("n", "<leader>cs", vim.lsp.buf.document_symbol, "Document symbols")
+          map_buffer_key("n", "<leader>cS", vim.lsp.buf.workspace_symbol, "Workspace symbols")
 
-          local client = vim.lsp.get_client_by_id(event.data.client_id)
-
-          -- Highlight other references of the symbol under the cursor
-          if client and client:supports_method('textDocument/documentHighlight', event.buf) then
-            local hl_group = vim.api.nvim_create_augroup('user_lsp_highlight', { clear = false })
-            vim.api.nvim_create_autocmd({ 'CursorHold', 'CursorHoldI' }, {
-              buffer = event.buf,
-              group = hl_group,
-              callback = vim.lsp.buf.document_highlight,
-            })
-            vim.api.nvim_create_autocmd({ 'CursorMoved', 'CursorMovedI' }, {
-              buffer = event.buf,
-              group = hl_group,
-              callback = vim.lsp.buf.clear_references,
-            })
-            vim.api.nvim_create_autocmd('LspDetach', {
-              group = vim.api.nvim_create_augroup('user_lsp_detach', { clear = true }),
-              callback = function(ev)
-                vim.lsp.buf.clear_references()
-                vim.api.nvim_clear_autocmds { group = hl_group, buffer = ev.buf }
-              end,
-            })
-          end
-
-          -- Inlay hints (zls provides parameter/type hints); toggle with <leader>th
-          if client and client:supports_method('textDocument/inlayHint', event.buf) then
-            vim.lsp.inlay_hint.enable(true, { bufnr = event.buf })
-            map('<leader>th', function()
-              vim.lsp.inlay_hint.enable(not vim.lsp.inlay_hint.is_enabled { bufnr = event.buf }, { bufnr = event.buf })
-            end, 'Toggle inlay hints')
+          if client and client:supports_method("textDocument/inlayHint") then
+            vim.lsp.inlay_hint.enable(true, { bufnr = bufnr })
+            map_buffer_key("n", "<leader>ch", function()
+              vim.lsp.inlay_hint.enable(
+                not vim.lsp.inlay_hint.is_enabled({ bufnr = bufnr }),
+                { bufnr = bufnr }
+              )
+            end, "Toggle inlay hints")
           end
         end,
       })
 
-      -- Advertise blink.cmp completion capabilities to every server
-      vim.lsp.config('*', { capabilities = require('blink.cmp').get_lsp_capabilities() })
-
-      -- zls: installed via scoop (version-locked to the scoop zig)
-      vim.lsp.config('zls', {
+      vim.lsp.config("zls", {
+        capabilities = capabilities,
+        cmd = { "zls" },
+        filetypes = { "zig", "zon" },
+        root_markers = { "build.zig", "build.zig.zon", ".git" },
         settings = {
           zls = {
-            -- Run `zig build` on save and surface build errors as diagnostics.
-            -- Tip: add a "check" step to build.zig and set
-            -- build_on_save_args = { 'check' } for faster feedback.
             enable_build_on_save = true,
-            semantic_tokens = 'full',
+            build_on_save_step = "check",
+            enable_snippets = true,
+            enable_argument_placeholders = true,
+            enable_ast_check_diagnostics = true,
+            enable_import_embedfile_argument_completions = true,
+            warn_style = true,
+            highlight_global_var_declarations = true,
+            skip_std_references = false,
+            prefer_ast_check_as_child_process = true,
+            inlay_hints_show_variable_type_hints = true,
+            inlay_hints_show_struct_literal_field_type = true,
+            inlay_hints_show_parameter_name = true,
+            inlay_hints_show_builtin = true,
+            inlay_hints_exclude_single_argument = true,
+            inlay_hints_hide_redundant_param_names = true,
+            inlay_hints_hide_redundant_param_names_last_token = true,
+            semantic_tokens = "full",
           },
         },
       })
-      vim.lsp.enable 'zls'
+      vim.lsp.enable("zls")
 
-      -- lua_ls: for editing this config
-      vim.lsp.config('lua_ls', {
-        settings = {
-          Lua = {
-            completion = { callSnippet = 'Replace' },
+      if vim.fn.executable("lua-language-server") == 1 then
+        vim.lsp.config("lua_ls", {
+          capabilities = capabilities,
+          cmd = { "lua-language-server" },
+          filetypes = { "lua" },
+          root_markers = { ".luarc.json", ".luarc.jsonc", ".git" },
+          settings = {
+            Lua = {
+              runtime = { version = "LuaJIT" },
+              workspace = {
+                checkThirdParty = false,
+                library = vim.api.nvim_get_runtime_file("", true),
+              },
+              diagnostics = { globals = { "vim" } },
+              telemetry = { enable = false },
+            },
           },
-        },
-      })
-
-      require('mason-tool-installer').setup {
-        ensure_installed = { 'lua-language-server', 'stylua', 'codelldb' },
-      }
-      -- mason-lspconfig auto-enables servers installed through mason
-      require('mason-lspconfig').setup()
+        })
+        vim.lsp.enable("lua_ls")
+      end
     end,
   },
 }

@@ -1,72 +1,70 @@
 # Neovim config — Zig-focused
 
-A from-scratch Neovim setup optimized for Zig development on Windows.
+A lazy.nvim-based Neovim setup for Zig development, primarily used on Windows.
 
-## Toolchain (managed by scoop)
+## Install
 
-| Tool | Purpose |
+Clone into Neovim's config directory (`:echo stdpath('config')`):
+
+```powershell
+git clone https://github.com/AaronJClausen/config.neovim.git $env:LOCALAPPDATA\nvim
+```
+
+```sh
+git clone https://github.com/AaronJClausen/config.neovim.git ~/.config/nvim
+```
+
+Plugins bootstrap themselves on first launch.
+
+## Requirements
+
+Everything is looked up on `PATH`; install it however you like (scoop, winget, a package manager, or from source).
+
+| Tool | Needed for |
 |---|---|
-| `neovim` | the editor |
-| `zig` | compiler; also used to build treesitter parsers |
-| `zls` | Zig language server (keep in lockstep with zig: `scoop update zig zls`) |
-| `tree-sitter` | CLI used by nvim-treesitter to build parsers |
-| `gcc` | C compiler for parser builds (config points `CC` at scoop's gcc) |
-| `ripgrep`, `fd` | telescope live-grep / file finding |
-| `JetBrainsMono-NF` | Nerd Font for icons — set it as your terminal font |
+| Neovim 0.11+ | uses `vim.lsp.config` / `vim.lsp.enable` |
+| `git` | lazy.nvim and plugin installs |
+| `zig` | builds, `zig fmt`, and compiling treesitter parsers when no other C compiler is present |
+| `zls` | Zig language server — keep it on the same version as `zig` |
+| `ripgrep` | telescope live grep |
+| A Nerd Font | icons — set it as your terminal font |
 
-Mason additionally installs `lua-language-server`, `stylua` (for editing this
-config) and `codelldb` (debugger) into `~/AppData/Local/nvim-data/mason`.
+Optional — each feature quietly falls back or stays off without it:
 
-## What you get for Zig
+| Tool | Enables |
+|---|---|
+| `pwsh` | used as Neovim's `shell` on Windows (otherwise `cmd.exe`) |
+| `cmake` | builds telescope-fzf-native (faster sorting) |
+| `make` | builds LuaSnip's jsregexp (snippet regex transforms) |
+| `codelldb` (or `codelldb.cmd`) | debugging; or set `vim.g.codelldb_path` |
+| `lua-language-server`, `stylua` | LSP and formatting while editing this config |
 
-- **zls**: completion, goto-def, rename, code actions, inlay hints,
-  semantic highlighting, and **build-on-save**: `zig build` runs when you save
-  and project-wide errors show as diagnostics.
-  - Tip: add a `check` step to your `build.zig` and set
-    `build_on_save_args = { 'check' }` in `lua/plugins/lsp.lua` for faster
-    feedback without producing binaries.
-- **Format on save** with `zig fmt` (conform.nvim).
-- **Treesitter** highlighting (parsers built with the tree-sitter CLI + scoop's
-  gcc — no MSVC needed).
-- **Debugging** with nvim-dap + codelldb (`F5` to launch `zig-out/bin/...`).
-- **Quickfix-integrated builds**: `<leader>zb` runs `:make` (`zig build`).
+Treesitter parsers compile with the first of `$CC`, `cc`, `gcc`, `clang`, `cl`, `zig` found. After adding a parser to `ensure_installed`, install it once headlessly so it doesn't compile on startup:
+
+```sh
+nvim --headless "+TSUpdateSync <parser>" +qa
+```
 
 ## Key bindings (leader = space)
 
 | Keys | Action |
 |---|---|
 | `<leader>zb` / `zr` / `zt` | zig build / build run / build test |
-| `gd` / `grr` / `gri` / `grt` | goto def / references / impl / type def |
-| `grn` / `gra` | rename / code action |
-| `K` | hover docs |
-| `<leader>th` | toggle inlay hints |
-| `<leader>sf` / `sg` / `sh` / `sk` | find files / live grep / help / keymaps |
-| `<leader><leader>` | open buffers |
-| `<leader>xx` / `xb` | diagnostics (Trouble) |
-| `<leader>e` | toggle file tree sidebar (neo-tree, reveals current file) |
-| `-` | file explorer, full window (oil.nvim — edit the fs like a buffer) |
-| `<leader>hs` / `hr` / `hp` | stage / reset / preview git hunk |
-| `F5` `F10` `F11` `<leader>db` | debug: continue / step over / step into / breakpoint |
-| `<leader>f` | format buffer |
-| `<Esc><Esc>` (terminal) | back to normal mode |
+| `<leader>zT` / `zR` / `zf` / `zc` | zig test / run / fmt / build-exe on the current file |
+| `gd` / `gD` / `gi` / `gr` / `gy` | definition / declaration / implementation / references / type definition |
+| `K` / `<C-k>` | hover / signature help |
+| `<leader>cr` / `ca` / `cf` / `ch` | rename / code action / format / toggle inlay hints |
+| `[d` / `]d` / `<leader>cd` | previous / next / line diagnostic |
+| `<leader>ff` / `fg` / `fb` / `fr` / `fk` | find files / live grep / buffers / recent / keymaps |
+| `<leader>e` / `<leader>o` | toggle / focus file tree |
+| `]h` / `[h`, `<leader>gs` / `gr` / `gp` / `gb` | hunks: navigate, stage / reset / preview / blame |
+| `<leader>xx` / `xX` / `xs` | Trouble: diagnostics / buffer diagnostics / symbols |
+| `<leader>db` / `dc` / `di` / `do` / `du` | debug: breakpoint / continue / step into / step over / UI |
+| `<leader>tt` / `th` / `tv`, `<C-\>` | floating / horizontal / vertical terminal |
+| `<S-h>` / `<S-l>` / `<leader>bd` | previous / next / delete buffer |
 
-Completion: `<C-y>` accept, `<C-n>`/`<C-p>` select, `<C-space>` docs.
-
-## Structure
-
-```
-init.lua                     entry point
-lua/config/{options,keymaps,autocmds,lazy}.lua
-lua/plugins/*.lua            one file per concern (lsp, dap, telescope, ...)
-after/ftplugin/zig.lua       zig-specific keymaps + :compiler zig_build
-```
+Completion: `<Tab>` / `<S-Tab>` cycle, `<CR>` confirm, `<C-Space>` open, `<C-e>` abort.
 
 ## Maintenance
 
-- `:Lazy update` — update plugins
-- `:Mason` — manage lua_ls / stylua / codelldb
-- `:checkhealth` — diagnose problems
-- `scoop update zig zls neovim` — update the toolchain
-
-The previous config was backed up to `nvim.bak-2025-kickstart` and
-`nvim-data.bak-2025-kickstart` next to this directory.
+Background update checks are off; run `:Lazy check` / `:Lazy update` manually, and `:checkhealth` to diagnose problems.

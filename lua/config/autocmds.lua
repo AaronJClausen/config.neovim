@@ -1,36 +1,39 @@
--- Autocommands
+local augroup = vim.api.nvim_create_augroup
+local autocmd = vim.api.nvim_create_autocmd
 
-local augroup = function(name)
-  return vim.api.nvim_create_augroup('user_' .. name, { clear = true })
-end
+autocmd("TextYankPost", {
+  group = augroup("highlight_yank", { clear = true }),
+  callback = function() vim.highlight.on_yank() end,
+})
 
--- Briefly highlight yanked text
-vim.api.nvim_create_autocmd('TextYankPost', {
-  group = augroup 'highlight_yank',
+-- Trailing whitespace is meaningful in markdown (hard line breaks) and diffs.
+autocmd("BufWritePre", {
+  group = augroup("trim_whitespace", { clear = true }),
   callback = function()
-    vim.hl.on_yank()
+    local filetype = vim.bo.filetype
+    if filetype == "markdown" or filetype == "diff" then return end
+    local view = vim.fn.winsaveview()
+    vim.cmd([[%s/\s\+$//e]])
+    vim.fn.winrestview(view)
   end,
 })
 
--- Restore cursor position when reopening a file
-vim.api.nvim_create_autocmd('BufReadPost', {
-  group = augroup 'restore_cursor',
-  callback = function(args)
-    local mark = vim.api.nvim_buf_get_mark(args.buf, '"')
-    local line_count = vim.api.nvim_buf_line_count(args.buf)
-    if mark[1] > 0 and mark[1] <= line_count then
-      pcall(vim.api.nvim_win_set_cursor, 0, mark)
-    end
+autocmd("FileType", {
+  group = augroup("zig_settings", { clear = true }),
+  pattern = "zig",
+  callback = function()
+    vim.bo.commentstring = "// %s"
+    vim.bo.expandtab = true
+    vim.bo.shiftwidth = 4
+    vim.bo.tabstop = 4
   end,
 })
 
--- Terminal buffers: no line numbers, start in insert mode
-vim.api.nvim_create_autocmd('TermOpen', {
-  group = augroup 'terminal',
-  callback = function()
-    vim.opt_local.number = false
-    vim.opt_local.relativenumber = false
-    vim.opt_local.signcolumn = 'no'
-    vim.cmd.startinsert()
+autocmd("FileType", {
+  group = augroup("close_with_q", { clear = true }),
+  pattern = { "help", "qf", "lspinfo", "man", "checkhealth" },
+  callback = function(ev)
+    vim.bo[ev.buf].buflisted = false
+    vim.keymap.set("n", "q", "<cmd>close<cr>", { buffer = ev.buf, silent = true })
   end,
 })

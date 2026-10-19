@@ -1,46 +1,58 @@
 return {
   {
-    'nvim-treesitter/nvim-treesitter',
-    branch = 'main',
-    lazy = false,
-    build = ':TSUpdate',
+    "nvim-treesitter/nvim-treesitter",
+    -- The default `main` branch is the v1.0 rewrite with an incompatible API (no nvim-treesitter.configs).
+    branch = "master",
+    build = ":TSUpdate",
+    event = { "BufReadPost", "BufNewFile" },
+    dependencies = {
+      { "nvim-treesitter/nvim-treesitter-textobjects", branch = "master" },
+    },
     config = function()
-      -- Parser builds need the tree-sitter CLI and a C compiler (both from
-      -- scoop). Point CC at scoop's gcc explicitly: the mingw 13.x in
-      -- C:\ProgramData\mingw64 can shadow it on PATH, and its ld cannot open
-      -- the \\?\-prefixed output paths the tree-sitter CLI passes.
-      if not vim.env.CC then
-        local scoop_gcc = vim.fs.normalize '~/scoop/apps/gcc/current/bin/gcc.exe'
-        if vim.uv.fs_stat(scoop_gcc) then
-          vim.env.CC = scoop_gcc
-        end
-      end
-
-      require('nvim-treesitter').install {
-        'zig',
-        'c',
-        'lua',
-        'luadoc',
-        'vim',
-        'vimdoc',
-        'query',
-        'markdown',
-        'markdown_inline',
-        'json',
-        'toml',
-        'yaml',
-        'bash',
-        'diff',
-        'gitcommit',
-        'regex',
-      }
-
-      -- Enable treesitter highlighting whenever a parser is available
-      vim.api.nvim_create_autocmd('FileType', {
-        group = vim.api.nvim_create_augroup('user_treesitter', { clear = true }),
-        callback = function(args)
-          pcall(vim.treesitter.start, args.buf)
-        end,
+      require("nvim-treesitter.configs").setup({
+        ensure_installed = {
+          "zig",
+          "lua", "vim", "vimdoc", "query", "regex",
+          "bash", "json", "yaml", "toml", "markdown", "markdown_inline",
+          "c", "cpp", "diff", "gitcommit", "gitignore",
+        },
+        -- Unlisted filetypes would otherwise compile parsers on open, which is slow on Windows.
+        auto_install = false,
+        sync_install = false,
+        highlight = {
+          enable = true,
+          additional_vim_regex_highlighting = false,
+        },
+        indent = { enable = true },
+        incremental_selection = {
+          enable = true,
+          keymaps = {
+            init_selection = "<C-space>",
+            node_incremental = "<C-space>",
+            scope_incremental = false,
+            node_decremental = "<bs>",
+          },
+        },
+        textobjects = {
+          select = {
+            enable = true,
+            lookahead = true,
+            keymaps = {
+              ["af"] = "@function.outer",
+              ["if"] = "@function.inner",
+              ["ac"] = "@class.outer",
+              ["ic"] = "@class.inner",
+              ["aa"] = "@parameter.outer",
+              ["ia"] = "@parameter.inner",
+            },
+          },
+          move = {
+            enable = true,
+            set_jumps = true,
+            goto_next_start = { ["]f"] = "@function.outer", ["]c"] = "@class.outer" },
+            goto_previous_start = { ["[f"] = "@function.outer", ["[c"] = "@class.outer" },
+          },
+        },
       })
     end,
   },
